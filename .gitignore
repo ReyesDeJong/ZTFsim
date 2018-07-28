@@ -1,6 +1,7 @@
 
 .metadata
 bin/
+.idea/
 tmp/
 datasets/
 TB/
