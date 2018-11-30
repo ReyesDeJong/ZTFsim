@@ -12,6 +12,7 @@ videoWCCI2018/
 .ipynb_checkpoints/
 *-checkpoint.ipynb
 *.tmp
+*.dat
 *.bak
 *.swp
 *~.nib
