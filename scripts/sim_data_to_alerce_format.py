@@ -87,13 +87,13 @@ if __name__ == "__main__":
     print('\n%s' % (field))
     field_data = sim_data[field]
     band_list = list(field_data[lightcurves_key].keys())
-    for band in band_list:
-      zp = field_data[obs_cond_key][zero_point_key][band][:]
-      exp_time = field_data[obs_cond_key][exp_time_key][band][:]
-      limmag5 = field_data[obs_cond_key][limmag5_key][band][:]
-      mjds = field_data[obs_cond_key][obs_day_key][band][:]
-      for lightcurve_indx in range(
-          field_data[estimated_counts_key][band].shape[0]):
+    for lightcurve_indx in range(field_data[lc_type_key].shape[0]):
+      for band in band_list:
+        zp = field_data[obs_cond_key][zero_point_key][band][:]
+        exp_time = field_data[obs_cond_key][exp_time_key][band][:]
+        limmag5 = field_data[obs_cond_key][limmag5_key][band][:]
+        mjds = field_data[obs_cond_key][obs_day_key][band][:]
+
         lc_type = field_data[lc_type_key][lightcurve_indx]
         # print('\n%s %s %s %s' % (field, band, str(lightcurve_indx), lc_type))
         estimated_counts = field_data[estimated_counts_key][band][
@@ -106,7 +106,6 @@ if __name__ == "__main__":
         # write to dict that will be converted to df
         oid_list = ['rod_est_2019_oid_%i' % object_id_indx] * \
                    estimated_counts.shape[0]
-        object_id_indx += 1
         #
         random_oid = np.random.choice(oids[band].shape[0])
         random_oid_df = oid_df[band][
@@ -140,6 +139,7 @@ if __name__ == "__main__":
         dict_to_be_df[sigmapsf_corr_key] += sigmapsf_corr_list
         dict_to_be_df[lc_type_key] += lc_type_list
         dict_to_be_df[detected_key] += detected_list
+      object_id_indx += 1
 
   for key in dict_to_be_df.keys():
     print('%s %s' % (key, str(len(dict_to_be_df[key]))))
@@ -148,3 +148,6 @@ if __name__ == "__main__":
   sim_data_df_with_non_det = pd.DataFrame(dict_to_be_df)
   sim_data_df = sim_data_df_with_non_det[
     sim_data_df_with_non_det[detected_key] == 1]
+
+  label_names = np.unique(sim_data_df[lc_type_key])
+
