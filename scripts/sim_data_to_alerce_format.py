@@ -87,11 +87,11 @@ if __name__ == "__main__":
     print('\n%s' % (field))
     field_data = sim_data[field]
     band_list = list(field_data[lightcurves_key].keys())
-    mjds = field_data[obs_cond_key][obs_day_key]
     for band in band_list:
       zp = field_data[obs_cond_key][zero_point_key][band][:]
       exp_time = field_data[obs_cond_key][exp_time_key][band][:]
       limmag5 = field_data[obs_cond_key][limmag5_key][band][:]
+      mjds = field_data[obs_cond_key][obs_day_key][band][:]
       for lightcurve_indx in range(
           field_data[estimated_counts_key][band].shape[0]):
         lc_type = field_data[lc_type_key][lightcurve_indx]
