@@ -11,6 +11,7 @@ PATH_TO_PROJECT = os.path.abspath(
 sys.path.append(PATH_TO_PROJECT)
 
 import parameters.general_keys as general_keys
+import parameters.dataframe_keys as dataframe_keys
 
 
 def atoi(text):
@@ -30,28 +31,6 @@ def human_sort(numpy_array):
   array_as_list = list(numpy_array)
   array_as_list.sort(key=natural_keys)
   return np.array(array_as_list)
-
-
-def get_magnitude(ADU, zp, T):
-  ADU = np.clip(ADU, 1, np.max(ADU))
-  magnitude = zp - 2.5 * np.log10(ADU) - 0.3  # / T)
-  return magnitude
-
-
-def get_magnitude_error(estimated_counts, estimated_count_error):
-  estimated_counts = np.clip(estimated_counts, 1, np.max(estimated_counts))
-  estimated_count_error = np.clip(estimated_count_error, 0,
-                                  np.max(estimated_count_error))
-  f = estimated_counts
-  sigma_f = np.sqrt(estimated_count_error)
-  sigma_m = 1.09 * (sigma_f / f)
-  return sigma_m
-
-
-# this is counter intuituve due to lower magnitude is a brighter object
-def is_detected(magnitude, limmag5):
-  return (magnitude - limmag5) < 0
-
 
 def create_labels_dict(data_df):
   dict_of_labels = {oid_key: [], 'label_name': [], 'label_value': []}
@@ -79,38 +58,134 @@ def save_labels_pickle(data_df, path):
 
 class SimulatedData2Dataframe(object):
 
-  def __init__(self, path_sim_data, path_real_data_frame):
+  def __init__(self, path_similated_data, path_real_dataframe, verbose=False):
     # self.sim_data_folder = os.path.join(PATH_TO_PROJECT, '..', 'datasets',
     #                                     'simulated_data', 'image_sequences')
     # self.real_data_frame_folder = os.path.join(PATH_TO_PROJECT, '..',
     #                                            'datasets', 'ZTF')
     # self.sim_data_path = os.path.join(self.sim_data_folder, )
-    self.path_sim_data = path_sim_data
-    self.path_real_data_frame = path_real_data_frame
+    self.path_real_dataframe = path_real_dataframe
+    self.path_simulated_data = path_similated_data
+    self.bands_to_num_dict = {'g': 1, 'r': 2}
+    self.verbose = verbose
 
-estimated_counts_key = 'estimated_counts'
-estimated_error_counts_key = 'estimated_error_counts'
-g_key = 'g'
-r_key = 'r'
-lightcurves_key = 'lightcurves'
-obs_cond_key = 'obs_cond'
-obs_day_key = 'obs_day'
-zero_point_key = 'zero_point'
-exp_time_key = 'exp_time'
-limmag5_key = 'limmag5'
-asteroids_key = 'Asteroids'
+  def load_dataframe(self):
+    return pd.read_pickle(self.path_real_dataframe)
 
-oid_key = 'oid'
-ra_key = 'ra'
-dec_key = 'dec'
-fid_key = 'fid'
-jd_key = 'jd'
-magpsf_corr_key = 'magpsf_corr'
-sigmapsf_corr_key = 'sigmapsf_corr'
-lc_type_key = 'lc_type'
-detected_key = 'detected'
+  def load_simulated_data(self):
+    return h5py.File(self.path_simulated_data, "r")
 
-bands_to_num_dict = {'g': 1, 'r': 2}
+  def _get_empty_dict_for_simulated_data(self):
+    dict_to_contain_simulated_data = {
+      dataframe_keys.OID: [], dataframe_keys.RA: [], dataframe_keys.DEC: [],
+      dataframe_keys.FID: [], dataframe_keys.JD: [],
+      dataframe_keys.MAGPSF_CORR: [], dataframe_keys.SIGMAPSF_CORR: [],
+      dataframe_keys.LC_TYPE: [], dataframe_keys.LC_TYPE: []}
+
+  def _get_n_objects_ra_dec_data_frames(self, n_oids=1000):
+    return None
+    # oids_g = np.unique(df[df[fid_key] == bands_to_num_dict[g_key]][oid_key])[
+    #          :1000]
+    # oids_r = np.unique(df[df[fid_key] == bands_to_num_dict[r_key]][oid_key])[
+    #          :1000]
+    # oid_df_g = df[df[oid_key].isin(oids_g)][[oid_key, ra_key, dec_key]]
+    # oid_df_r = df[df[oid_key].isin(oids_r)][[oid_key, ra_key, dec_key]]
+    # oids = {'g': oids_g, 'r': oids_r}
+    # oid_df = {'g': oid_df_g, 'r': oid_df_r}
+
+  def get_magnitude(self, ADU, zp, T):
+    ADU = np.clip(ADU, 1, np.max(ADU))
+    magnitude = zp - 2.5 * np.log10(ADU) - 0.3  # / T)
+    return magnitude
+
+  def get_magnitude_error(self, estimated_counts, estimated_count_error):
+    estimated_counts = np.clip(estimated_counts, 1, np.max(estimated_counts))
+    estimated_count_error = np.clip(estimated_count_error, 0,
+                                    np.max(estimated_count_error))
+    f = estimated_counts
+    sigma_f = np.sqrt(estimated_count_error)
+    sigma_m = 1.09 * (sigma_f / f)
+    return sigma_m
+
+  # this is counter intuituve due to lower magnitude is a brighter object
+  def is_detected(self, magnitude, limmag5):
+    return (magnitude - limmag5) < 0
+
+  def get_simulated_data_as_dict(self):
+    sim_data = self.load_simulated_data()
+    real_dataframe = self.load_dataframe()
+    dict_sim_data = self._get_empty_dict_for_simulated_data()
+    field_keys = sim_data.keys()
+    oids_g = np.unique(real_dataframe[real_dataframe[dataframe_keys.FID] == self.bands_to_num_dict[general_keys.G]][dataframe_keys.OID])[
+             :1000]
+    oids_r = np.unique(real_dataframe[real_dataframe[dataframe_keys.FID] == self.bands_to_num_dict[general_keys.R]][dataframe_keys.OID])[
+             :1000]
+    oid_df_g = real_dataframe[real_dataframe[dataframe_keys.OID].isin(oids_g)][[dataframe_keys.OID, dataframe_keys.RA, dataframe_keys.DEC]]
+    oid_df_r = real_dataframe[real_dataframe[dataframe_keys.OID].isin(oids_r)][[dataframe_keys.OID, dataframe_keys.RA, dataframe_keys.DEC]]
+    oids = {'g': oids_g, 'r': oids_r}
+    oid_df = {'g': oid_df_g, 'r': oid_df_r}
+    object_id_indx = 0
+    for field in field_keys:
+      print('\n%s' % (field))
+      field_data = sim_data[field]
+      band_list = list(field_data[general_keys.LIGHTCURVES].keys())
+      for lightcurve_indx in range(field_data[general_keys.LC_TYPE].shape[0]):
+        for band in band_list:
+          field_obs_cond = field_data[general_keys.OBS_COND]
+          zp = field_obs_cond[general_keys.ZERO_POINT][band][:]
+          exp_time = field_obs_cond[general_keys.EXP_TIME][band][:]
+          limmag5 = field_obs_cond[general_keys.LIMMAG5][band][:]
+          mjds = field_obs_cond[general_keys.OBS_DAY][band][:]
+
+          lc_type = field_data[general_keys.LC_TYPE][lightcurve_indx]
+          estimated_counts = field_data[general_keys.ESTIMATED_COUNTS][band][
+                               lightcurve_indx][:]
+          estimated_error_counts = \
+          field_data[general_keys.ESTIMATED_ERROR_COUNTS][band][
+            lightcurve_indx][:]
+          magnitude = self.get_magnitude(estimated_counts, zp, exp_time)
+          magnitude_error = self.get_magnitude_error(estimated_counts,
+                                                estimated_error_counts)
+          # write to dict that will be converted to df
+          oid_list = ['rod_est_2019_oid_%i' % object_id_indx] * \
+                     estimated_counts.shape[0]
+
+          #
+          random_oid = np.random.choice(oids[band].shape[0])
+          random_oid_df = oid_df[band][
+            oid_df[band][dataframe_keys.OID] == oids[band][random_oid]]
+          ra_list = list(
+              np.random.choice(random_oid_df[dataframe_keys.RA],
+                               size=estimated_counts.shape[0]))
+          dec_list = list(
+              np.random.choice(random_oid_df[dataframe_keys.DEC],
+                               size=estimated_counts.shape[0]))
+
+          fid_list = [self.bands_to_num_dict[band]] * estimated_counts.shape[0]
+          jd_list = list(mjds)
+          magpsf_corr_list = list(magnitude)
+          sigmapsf_corr_list = list(magnitude_error)
+          lc_type_list = [lc_type] * estimated_counts.shape[0]
+          detected_list = list(self.is_detected(magnitude, limmag5))
+
+          # print('underliying magnitude: ', field_data[lightcurves_key][band][lightcurve_indx])
+          # print('estimated counts: ', estimated_counts)
+          # print('recovered magnitude: ', magnitude)
+          # print('limmag5: ', limmag5)
+          # print('detected: ', detected_list)
+
+          # TODO: write label (lc_type) to file
+          dict_sim_data[dataframe_keys.OID] += oid_list
+          dict_sim_data[dataframe_keys.RA] += ra_list
+          dict_sim_data[dataframe_keys.DEC] += dec_list
+          dict_sim_data[dataframe_keys.JD] += jd_list
+          dict_sim_data[dataframe_keys.FID] += fid_list
+          dict_sim_data[dataframe_keys.MAGPSF_CORR] += magpsf_corr_list
+          dict_sim_data[dataframe_keys.SIGMAPSF_CORR] += sigmapsf_corr_list
+          dict_sim_data[dataframe_keys.LC_TYPE] += lc_type_list
+          dict_sim_data[dataframe_keys.DETECTED] += detected_list
+        object_id_indx += 1
+
 
 if __name__ == "__main__":
   df_file_path = os.path.join(PATH_TO_PROJECT, '..', 'datasets', 'ZTF',
@@ -136,7 +211,8 @@ if __name__ == "__main__":
   oid_df = {'g': oid_df_g, 'r': oid_df_r}
   object_id_indx = 0
   for field in field_keys:
-    print('\n%s' % (field))
+    if self.verbose:
+      print('\n%s' % (field))
     field_data = sim_data[field]
     band_list = list(field_data[lightcurves_key].keys())
     for lightcurve_indx in range(field_data[lc_type_key].shape[0]):
