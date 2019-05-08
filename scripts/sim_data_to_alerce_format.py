@@ -140,6 +140,8 @@ if __name__ == "__main__":
         dict_to_be_df[lc_type_key] += lc_type_list
         dict_to_be_df[detected_key] += detected_list
 
+  for key in dict_to_be_df.keys():
+    print('%s %s' % (key, str(len(dict_to_be_df[key]))))
   # dict to data frame
   sim_data_df_with_non_det = pd.DataFrame(dict_to_be_df)
   sim_data_df = sim_data_df_with_non_det[
