@@ -2,11 +2,34 @@ import os
 import sys
 import numpy as np
 import pandas as pd
+import pickle as pkl
 import h5py
+import re
 
 PATH_TO_PROJECT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(PATH_TO_PROJECT)
+
+import parameters.general_keys as general_keys
+
+
+def atoi(text):
+  return int(text) if text.isdigit() else text
+
+
+def natural_keys(text):
+  '''
+  alist.sort(key=natural_keys) sorts in human order
+  http://nedbatchelder.com/blog/200712/human_sorting.html
+  (See Toothy's implementation in the comments)
+  '''
+  return [atoi(c) for c in re.split(r'(\d+)', text)]
+
+
+def human_sort(numpy_array):
+  array_as_list = list(numpy_array)
+  array_as_list.sort(key=natural_keys)
+  return np.array(array_as_list)
 
 
 def get_magnitude(ADU, zp, T):
@@ -30,12 +53,40 @@ def is_detected(magnitude, limmag5):
   return (magnitude - limmag5) < 0
 
 
+def create_labels_dict(data_df):
+  dict_of_labels = {oid_key: [], 'label_name': [], 'label_value': []}
+  label_names = np.unique(data_df[lc_type_key])
+  print(label_names)
+  unique_oids = np.unique(data_df[oid_key])
+  unique_oids = human_sort(unique_oids)
+  for oid in unique_oids:
+    lightcurve_name = data_df[data_df[oid_key] == oid][lc_type_key].tolist()[0]
+    lightcurve_value = np.argwhere(label_names == lightcurve_name)[0][0]
+    dict_of_labels[oid_key].append(oid)
+    dict_of_labels['label_name'].append(lightcurve_name)
+    dict_of_labels['label_value'].append(lightcurve_value)
+  return dict_of_labels
+
+
+def save_pickle(data, path):
+  pkl.dump(data, open(path, 'wb'), protocol=pkl.HIGHEST_PROTOCOL)
+
+
+def save_labels_pickle(data_df, path):
+  labels_dict = create_labels_dict(data_df)
+  save_pickle(labels_dict, path)
+
+
 class SimulatedData2Dataframe(object):
 
-  def __init__(self, object_id_key='oid', filter_id_key='fid'):
-    self.object_id_key = object_id_key
-    self.filter_id_key = filter_id_key
-
+  def __init__(self, path_sim_data, path_real_data_frame):
+    # self.sim_data_folder = os.path.join(PATH_TO_PROJECT, '..', 'datasets',
+    #                                     'simulated_data', 'image_sequences')
+    # self.real_data_frame_folder = os.path.join(PATH_TO_PROJECT, '..',
+    #                                            'datasets', 'ZTF')
+    # self.sim_data_path = os.path.join(self.sim_data_folder, )
+    self.path_sim_data = path_sim_data
+    self.path_real_data_frame = path_real_data_frame
 
 estimated_counts_key = 'estimated_counts'
 estimated_error_counts_key = 'estimated_error_counts'
@@ -47,6 +98,7 @@ obs_day_key = 'obs_day'
 zero_point_key = 'zero_point'
 exp_time_key = 'exp_time'
 limmag5_key = 'limmag5'
+asteroids_key = 'Asteroids'
 
 oid_key = 'oid'
 ra_key = 'ra'
@@ -148,6 +200,24 @@ if __name__ == "__main__":
   sim_data_df_with_non_det = pd.DataFrame(dict_to_be_df)
   sim_data_df = sim_data_df_with_non_det[
     sim_data_df_with_non_det[detected_key] == 1]
+  sim_data_no_asteroids_df = sim_data_df[
+    sim_data_df[lc_type_key] != asteroids_key]
 
-  label_names = np.unique(sim_data_df[lc_type_key])
+  sim_data_df_save_path = os.path.join(PATH_TO_PROJECT, '..', 'datasets',
+                                       'simulated_data', 'image_sequences',
+                                       'sim_data_df.pkl')
+  sim_data_no_asteroids_df.to_pickle(sim_data_df_save_path)
 
+  sim_data_labels_save_path = os.path.join(PATH_TO_PROJECT, '..', 'datasets',
+                                           'simulated_data', 'image_sequences',
+                                           'sim_data_labels.pkl')
+  labels_dict = create_labels_dict(sim_data_no_asteroids_df)
+  save_pickle(data=labels_dict, path=sim_data_labels_save_path)
+
+  for i in range(10):
+    print('\n %i' % i)
+    for key in labels_dict.keys():
+      print('%s %s' % (key, str(labels_dict[key][i])))
+
+  print(sim_data_no_asteroids_df[
+          sim_data_no_asteroids_df[lc_type_key] == 'EmptyLightCurve'])
