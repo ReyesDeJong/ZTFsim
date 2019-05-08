@@ -95,7 +95,7 @@ if __name__ == "__main__":
       for lightcurve_indx in range(
           field_data[estimated_counts_key][band].shape[0]):
         lc_type = field_data[lc_type_key][lightcurve_indx]
-        #print('\n%s %s %s %s' % (field, band, str(lightcurve_indx), lc_type))
+        # print('\n%s %s %s %s' % (field, band, str(lightcurve_indx), lc_type))
         estimated_counts = field_data[estimated_counts_key][band][
                              lightcurve_indx][:]
         estimated_error_counts = field_data[estimated_error_counts_key][band][
@@ -134,6 +134,7 @@ if __name__ == "__main__":
         dict_to_be_df[oid_key] += oid_list
         dict_to_be_df[ra_key] += ra_list
         dict_to_be_df[dec_key] += dec_list
+        dict_to_be_df[jd_key] += jd_list
         dict_to_be_df[fid_key] += fid_list
         dict_to_be_df[magpsf_corr_key] += magpsf_corr_list
         dict_to_be_df[sigmapsf_corr_key] += sigmapsf_corr_list
@@ -142,6 +143,7 @@ if __name__ == "__main__":
 
   for key in dict_to_be_df.keys():
     print('%s %s' % (key, str(len(dict_to_be_df[key]))))
+
   # dict to data frame
   sim_data_df_with_non_det = pd.DataFrame(dict_to_be_df)
   sim_data_df = sim_data_df_with_non_det[
