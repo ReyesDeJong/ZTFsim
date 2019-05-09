@@ -21,11 +21,6 @@ def save_pickle(data, path):
 class SimulatedData2Dataframe(object):
 
   def __init__(self, path_simulated_data, path_real_dataframe, verbose=False):
-    # self.sim_data_folder = os.path.join(PATH_TO_PROJECT, '..', 'datasets',
-    #                                     'simulated_data', 'image_sequences')
-    # self.real_data_frame_folder = os.path.join(PATH_TO_PROJECT, '..',
-    #                                            'datasets', 'ZTF')
-    # self.sim_data_path = os.path.join(self.sim_data_folder, )
     self.path_real_dataframe = path_real_dataframe
     self.path_simulated_data = path_simulated_data
     self.bands_to_num_dict = {'g': 1, 'r': 2}
@@ -36,34 +31,12 @@ class SimulatedData2Dataframe(object):
     return int(text) if text.isdigit() else text
 
   def natural_keys(self, text):
-    '''
-    alist.sort(key=natural_keys) sorts in human order
-    http://nedbatchelder.com/blog/200712/human_sorting.html
-    (See Toothy's implementation in the comments)
-    '''
     return [self.atoi(c) for c in re.split(r'(\d+)', text)]
 
   def human_sort(self, numpy_array):
     array_as_list = list(numpy_array)
     array_as_list.sort(key=self.natural_keys)
     return np.array(array_as_list)
-
-  def create_labels_dict(self, data_df):
-    dict_of_labels = {dataframe_keys.OID: [], 'label_name': [],
-                      'label_value': []}
-    label_names = np.unique(data_df[dataframe_keys.LC_TYPE])
-    print(label_names)
-    unique_oids = np.unique(data_df[dataframe_keys.OID])
-    unique_oids = self.human_sort(unique_oids)
-    for oid in unique_oids:
-      lightcurve_name = data_df[data_df[dataframe_keys.OID] == oid][
-        dataframe_keys.LC_TYPE].tolist()[
-        0]
-      lightcurve_value = np.argwhere(label_names == lightcurve_name)[0][0]
-      dict_of_labels[dataframe_keys.OID].append(oid)
-      dict_of_labels['label_name'].append(lightcurve_name)
-      dict_of_labels['label_value'].append(lightcurve_value)
-    return dict_of_labels
 
   def load_dataframe(self):
     return pd.read_pickle(self.path_real_dataframe)
@@ -131,12 +104,28 @@ class SimulatedData2Dataframe(object):
                   self.check_lightcurve_class(field_data, lightcurve_indx)]
     return all(conditions)
 
+  def _remove_classes(self, label_names,
+      classes_to_remove=[general_keys.ASTEROIDS,
+                         general_keys.EMPTY_LIGHT_CURVE]):
+    label_names = list(label_names)
+    for class_to_remove in classes_to_remove:
+      label_names.remove(class_to_remove)
+    return np.array(label_names)
+
   def get_simulated_data_as_dict(self):
     sim_data = self.load_simulated_data()
     real_dataframe = self.load_dataframe()
     dict_sim_data = self._get_empty_dict_for_simulated_data()
-    # dict_of_labels = {dataframe_keys.OID: [], 'label_name': [], 'label_value': []}
-    field_keys = sim_data.keys()
+
+    field_keys = list(sim_data.keys())
+    #band_list = list(sim_data[field_keys[0]][general_keys.LIGHTCURVES].keys())
+    print(field_keys)
+    #print(band_list)
+    dict_of_labels = {dataframe_keys.OID: [], 'label_name': [], 'label_value': []}
+    label_names = np.unique(sim_data[field_keys[0]][general_keys.LC_TYPE])
+    label_names = self._remove_classes(label_names)
+    #print(label_names)
+
     oids_g = np.unique(real_dataframe[real_dataframe[dataframe_keys.FID] ==
                                       self.bands_to_num_dict[general_keys.G]][
                          dataframe_keys.OID])[
@@ -159,6 +148,14 @@ class SimulatedData2Dataframe(object):
       for lightcurve_indx in range(field_data[general_keys.LC_TYPE].shape[0]):
         if self.check_conditions_to_reject_light_curve(field_data, lightcurve_indx) == False:
           continue
+
+        oid = 'rod_est_2019_oid_%i' % object_id_indx
+        lightcurve_name = field_data[general_keys.LC_TYPE][lightcurve_indx]
+        lightcurve_value = np.argwhere(label_names == lightcurve_name)[0][0]
+        dict_of_labels[dataframe_keys.OID].append(oid)
+        dict_of_labels['label_name'].append(lightcurve_name)
+        dict_of_labels['label_value'].append(lightcurve_value)
+
         for band in band_list:
           field_obs_cond = field_data[general_keys.OBS_COND]
           zp = field_obs_cond[general_keys.ZERO_POINT][band][:]
@@ -166,7 +163,7 @@ class SimulatedData2Dataframe(object):
           limmag5 = field_obs_cond[general_keys.LIMMAG5][band][:]
           mjds = field_obs_cond[general_keys.OBS_DAY][band][:]
 
-          lc_type = field_data[general_keys.LC_TYPE][lightcurve_indx]
+          lc_type = lightcurve_name
           estimated_counts = field_data[general_keys.ESTIMATED_COUNTS][band][
                                lightcurve_indx][:]
           estimated_error_counts = \
@@ -214,20 +211,20 @@ class SimulatedData2Dataframe(object):
           dict_sim_data[dataframe_keys.LC_TYPE] += lc_type_list
           dict_sim_data[dataframe_keys.DETECTED] += detected_list
         object_id_indx += 1
-    return dict_sim_data
+    return dict_sim_data, dict_of_labels
 
 
 if __name__ == "__main__":
   df_file_path = os.path.join(PATH_TO_PROJECT, '..', 'datasets', 'ZTF',
-                              'alerts_corr_10detections.pickle')
+                              'alerts_corr_10detections.pickle')#'alerts_corr_small.pickle')
   df = pd.read_pickle(df_file_path)
   sim_data_file_path = os.path.join(PATH_TO_PROJECT, '..', 'datasets',
                                     'simulated_data', 'image_sequences',
-                                    'for_nacho_for_nacho1200_sigma5.hdf5')#'good_zero_points_good_zero_points10.hdf5')
+                                    'for_nacho_for_nacho1200_sigma5.hdf5')#'good_zero_points_good_zero_points10.hdf5')#
   data_transformer = SimulatedData2Dataframe(
       path_simulated_data=sim_data_file_path, path_real_dataframe=df_file_path)
 
-  dict_to_be_df = data_transformer.get_simulated_data_as_dict()
+  dict_to_be_df, labels_dict = data_transformer.get_simulated_data_as_dict()
 
   for key in dict_to_be_df.keys():
     print('%s %s' % (key, str(len(dict_to_be_df[key]))))
@@ -247,7 +244,7 @@ if __name__ == "__main__":
   sim_data_labels_save_path = os.path.join(PATH_TO_PROJECT, '..', 'datasets',
                                            'simulated_data', 'image_sequences',
                                            'sim_data_labels_for_nacho.pkl')
-  labels_dict = data_transformer.create_labels_dict(sim_data_no_asteroids_df)
+  #labels_dict = data_transformer.create_labels_dict(sim_data_no_asteroids_df)
   save_pickle(data=labels_dict, path=sim_data_labels_save_path)
 
   for i in range(10):
@@ -258,3 +255,9 @@ if __name__ == "__main__":
   print(sim_data_no_asteroids_df[
           sim_data_no_asteroids_df[
             dataframe_keys.LC_TYPE] == 'EmptyLightCurve'])
+
+  sim_data_df_droped = sim_data_df.drop([dataframe_keys.LC_TYPE, dataframe_keys.DETECTED], 1)
+  sim_data_df_droped_save_path = os.path.join(PATH_TO_PROJECT, '..', 'datasets',
+                                       'simulated_data', 'image_sequences',
+                                       'sim_data_df_for_nacho_clean.pkl')
+  sim_data_df_droped.to_pickle(sim_data_df_droped_save_path)
