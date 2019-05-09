@@ -118,13 +118,14 @@ class SimulatedData2Dataframe(object):
     dict_sim_data = self._get_empty_dict_for_simulated_data()
 
     field_keys = list(sim_data.keys())
-    #band_list = list(sim_data[field_keys[0]][general_keys.LIGHTCURVES].keys())
+    # band_list = list(sim_data[field_keys[0]][general_keys.LIGHTCURVES].keys())
     print(field_keys)
-    #print(band_list)
-    dict_of_labels = {dataframe_keys.OID: [], 'label_name': [], 'label_value': []}
+    # print(band_list)
+    dict_of_labels = {dataframe_keys.OID: [], 'label_name': [],
+                      'label_value': []}
     label_names = np.unique(sim_data[field_keys[0]][general_keys.LC_TYPE])
     label_names = self._remove_classes(label_names)
-    #print(label_names)
+    # print(label_names)
 
     oids_g = np.unique(real_dataframe[real_dataframe[dataframe_keys.FID] ==
                                       self.bands_to_num_dict[general_keys.G]][
@@ -146,7 +147,8 @@ class SimulatedData2Dataframe(object):
       field_data = sim_data[field]
       band_list = list(field_data[general_keys.LIGHTCURVES].keys())
       for lightcurve_indx in range(field_data[general_keys.LC_TYPE].shape[0]):
-        if self.check_conditions_to_reject_light_curve(field_data, lightcurve_indx) == False:
+        if self.check_conditions_to_reject_light_curve(field_data,
+                                                       lightcurve_indx) == False:
           continue
 
         oid = 'rod_est_2019_oid_%i' % object_id_indx
@@ -213,51 +215,43 @@ class SimulatedData2Dataframe(object):
         object_id_indx += 1
     return dict_sim_data, dict_of_labels
 
+  def get_simulated_data_as_df(self):
+    dict_to_be_df, labels_dict = self.get_simulated_data_as_dict()
+    sim_data_df_with_non_det = pd.DataFrame(dict_to_be_df)
+    return sim_data_df_with_non_det, labels_dict
+
+  def filter_non_detected_from_df(self, df):
+    return df[df[dataframe_keys.DETECTED] == 1]
+
+  def remove_unnecesary_colums(self, df):
+    return df.drop([dataframe_keys.LC_TYPE, dataframe_keys.DETECTED], 1)
+
 
 if __name__ == "__main__":
-  df_file_path = os.path.join(PATH_TO_PROJECT, '..', 'datasets', 'ZTF',
-                              'alerts_corr_10detections.pickle')#'alerts_corr_small.pickle')
-  df = pd.read_pickle(df_file_path)
-  sim_data_file_path = os.path.join(PATH_TO_PROJECT, '..', 'datasets',
-                                    'simulated_data', 'image_sequences',
-                                    'for_nacho_for_nacho1200_sigma5.hdf5')#'good_zero_points_good_zero_points10.hdf5')#
+  ztf_light_curves_folder = os.path.join(PATH_TO_PROJECT, '..', 'datasets',
+                                         'ZTF')
+  sim_data_folder = os.path.join(PATH_TO_PROJECT, '..', 'datasets',
+                                 'simulated_data', 'image_sequences')
+  df_file_path = os.path.join(ztf_light_curves_folder,
+                              'alerts_corr_10detections.pickle')  # 'alerts_corr_small.pickle')
+  sim_data_file_path = os.path.join(sim_data_folder,
+                                    'for_nacho_for_nacho1200_sigma5.hdf5')  # 'good_zero_points_good_zero_points10.hdf5')
+
   data_transformer = SimulatedData2Dataframe(
       path_simulated_data=sim_data_file_path, path_real_dataframe=df_file_path)
+  sim_data_df_with_non_det, labels_dict = data_transformer.get_simulated_data_as_df()
+  sim_data_df = data_transformer.filter_non_detected_from_df(
+      sim_data_df_with_non_det)
+  sim_data_df_droped = data_transformer.remove_unnecesary_colums(sim_data_df)
 
-  dict_to_be_df, labels_dict = data_transformer.get_simulated_data_as_dict()
-
-  for key in dict_to_be_df.keys():
-    print('%s %s' % (key, str(len(dict_to_be_df[key]))))
-
-  # dict to data frame
-  sim_data_df_with_non_det = pd.DataFrame(dict_to_be_df)
-  sim_data_df = sim_data_df_with_non_det[
-    sim_data_df_with_non_det[dataframe_keys.DETECTED] == 1]
-  sim_data_no_asteroids_df = sim_data_df[
-    sim_data_df[dataframe_keys.LC_TYPE] != general_keys.ASTEROIDS]
-
-  sim_data_df_save_path = os.path.join(PATH_TO_PROJECT, '..', 'datasets',
-                                       'simulated_data', 'image_sequences',
+  sim_data_df_save_path = os.path.join(sim_data_folder,
                                        'sim_data_df_for_nacho.pkl')
-  sim_data_no_asteroids_df.to_pickle(sim_data_df_save_path)
-
-  sim_data_labels_save_path = os.path.join(PATH_TO_PROJECT, '..', 'datasets',
-                                           'simulated_data', 'image_sequences',
+  sim_data_labels_save_path = os.path.join(sim_data_folder,
                                            'sim_data_labels_for_nacho.pkl')
-  #labels_dict = data_transformer.create_labels_dict(sim_data_no_asteroids_df)
+  sim_data_df_droped.to_pickle(sim_data_df_save_path)
   save_pickle(data=labels_dict, path=sim_data_labels_save_path)
 
   for i in range(10):
     print('\n %i' % i)
     for key in labels_dict.keys():
       print('%s %s' % (key, str(labels_dict[key][i])))
-
-  print(sim_data_no_asteroids_df[
-          sim_data_no_asteroids_df[
-            dataframe_keys.LC_TYPE] == 'EmptyLightCurve'])
-
-  sim_data_df_droped = sim_data_df.drop([dataframe_keys.LC_TYPE, dataframe_keys.DETECTED], 1)
-  sim_data_df_droped_save_path = os.path.join(PATH_TO_PROJECT, '..', 'datasets',
-                                       'simulated_data', 'image_sequences',
-                                       'sim_data_df_for_nacho_clean.pkl')
-  sim_data_df_droped.to_pickle(sim_data_df_droped_save_path)
