@@ -13,4 +13,11 @@ ZERO_POINT = 'zero_point'
 EXP_TIME = 'exp_time'
 LIMMAG5 = 'limmag5'
 LC_TYPE = 'lc_type'
+
+#classes
 ASTEROIDS = 'Asteroids'
+EMPTY_LIGHT_CURVE = 'EmptyLightCurve'
+ECLIPSING_BINARIES = 'EclipsingBinaries'
+M33CEPHEIDS = 'M33Cepheids'
+NON_VARIABLE ='NonVariable'
+RR_LYRAE = 'RRLyrae'
